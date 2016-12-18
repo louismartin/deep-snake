@@ -1,0 +1,6 @@
+# Latex report
+**/report/*.aux
+**/report/*.log
+**/report/*.out
+**/report/*.fls
+**/report/*.fdb_latexmk
