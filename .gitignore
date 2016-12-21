@@ -1,3 +1,5 @@
+venv
+
 # Latex report
 **/report/*.aux
 **/report/*.log
