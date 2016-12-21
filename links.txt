@@ -1,0 +1,5 @@
+https://github.com/farizrahman4u/qlearning4k
+https://deepmind.com/blog/deep-reinforcement-learning/
+http://karpathy.github.io/2016/05/31/rl/
+https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf
+http://spranesh.github.io/rl-snake/
