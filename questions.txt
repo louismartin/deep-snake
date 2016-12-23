@@ -1,0 +1,35 @@
+Some interesting questions
+
+# rewards
+- bad if the snake eats itself or hits a wall
+- good if the sake eat a fruit 
+- quite bad if nothing happens (we want to encourage the snake to eat fruits)
+rewards  = {‘hit’ : -10, ‘fruit’ : +10, ‘nothing’ : -1}
+
+# colors
+- grayscale (to save computational time)
+- one single color for the snake (not for the head, the algorithm will figure out itself ?!)
+- one (other) single color for the fruits
+- one (other) single color for the walls 
+
+# preprocessing of the frames
+- solution 1: differences of frames but two problems:
+	- the network will not see the entire snake, only its head and tail when it gets bigger
+	- the network will only see the fruit in ONE frame when it appears, and will see a negative fruit when it disappears
+- solution 2: feeding 2 frames at a time
+	- TODO: look for examples where this has been done
+
+# structure of the policy network
+- 4 possible actions (vs. 2 in Pong)
+- 1 hidden state (200 units as a starting points), 1 output state with 4 units representing each the probability to take one of the 4 actions
+- TODO: which lost to use ? Class-entropy loss ? 
+
+# training (adapted from Pong)
+- For n games, forward frame, sample action from policy network output, get reward by playing snake with that action, save frame, output, reward, fake label = label associated to the action we took
+- Associate a number with every game called the advantage if we won or lost it (in snake, we never actually win a game (unless perfect spiral), the advantage may be a sort of centered lifetime for each game)
+- for every saved frame, output, reward, advantage associated to the game the frame belongs to, backprop the gradient (TODO : how to compute the gradient) and update parameters (can do that in batch mode)
+
+# next
+- use convents
+- use L2 regularization
+- use big frames and a big snake 
