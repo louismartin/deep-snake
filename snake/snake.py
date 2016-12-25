@@ -63,26 +63,30 @@ class Snake:
             print('Food eaten :)')
             self.spawn_food()
             reward = +10
+            reset = False
         else:
             self.snake.popleft() # Snake did not grow, pop end of tail
             if self.is_out():
                 print('Wall hit :(')
                 reward = -10
+                reset = True
                 self.reset()
             elif self.is_bitten():
                 print('Tail bitten :(')
                 reward = -10
+                reset = True
                 self.reset()
             else:
                 reward = -1
-        return reward
+                reset = False
+        return reward, reset
 
     def display(self):
-       grid = np.zeros((self.grid_size, self.grid_size))
-       for (row,col) in self.snake:
-           grid[row,col] = -1
-       grid[self.food] = 1
+        grid = np.zeros((self.grid_size, self.grid_size))
+        for (row,col) in self.snake:
+            grid[row,col] = -1
+        grid[self.food] = 1 
 
-       plt.ion()
-       plt.imshow(grid, interpolation='nearest')
-       plt.pause(0.1)
+        plt.ion()
+        plt.imshow(grid, interpolation='nearest')
+        plt.pause(0.1)
