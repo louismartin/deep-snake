@@ -4,9 +4,9 @@ from collections import deque
 from random import randint
 
 class Snake:
-    def __init__(self):
-        self.grid_size = 5
-        self.snake_length = 3 # Snake length
+    def __init__(self, grid_size=5, snake_length=4):
+        self.grid_size = grid_size
+        self.snake_length = snake_length
         # TODO: add idle action ? (Check if performance increases)
         self.actions = {
             0: (0,-1), # Move left
@@ -20,8 +20,11 @@ class Snake:
         # Position of the snake; leftmost element is the head,
         # the rest is the tail
         # Example: snake = [(0,0), (0,1), (0,2)]
+        self.grid = np.zeros((self.grid_size, self.grid_size))
         snake = [(0,col) for col in range(self.snake_length)]
         self.snake = deque(snake) # deque for fast FIFO queue
+        for (row,col) in self.snake:
+            self.grid[row,col] = -1
         self.spawn_food()
 
     @property
@@ -32,13 +35,6 @@ class Snake:
     def tail(self): # TODO: might not be fast (for is_bitten)
         return list(self.snake)[:-1]
 
-    def is_out(self):
-        (row,col) = self.head
-        if row<0 or row>=self.grid_size or col<0 or col>=self.grid_size:
-            return True
-        else:
-            return False
-
     def is_bitten(self):
         if self.head in self.tail:
             return True
@@ -47,13 +43,20 @@ class Snake:
 
     def move(self, row_inc, col_inc):
         (row, col) = self.head
-        self.snake.append((row + row_inc, col + col_inc))
+        (row, col) = (row + row_inc, col + col_inc)
+        if row<0 or row>=self.grid_size or col<0 or col>=self.grid_size:
+            self.is_out = True
+        else:
+            self.snake.append((row, col))
+            self.grid[(row, col)] = -1
+            self.is_out = False
 
     def spawn_food(self):
         self.food = (randint(0,self.grid_size-1), randint(0,self.grid_size-1))
         # Spawn food again if it appeared in the snake
         if self.food in self.snake:
             self.spawn_food()
+        self.grid[self.food] = 1
 
     def play(self, action):
         assert action in self.actions.keys()
@@ -64,28 +67,28 @@ class Snake:
             self.spawn_food()
             reward = +10
             reset = False
+        elif self.is_bitten():
+            print('Tail bitten :(')
+            reward = -10
+            reset = True
+            self.reset()
+        elif self.is_out:
+            print('Wall hit :(')
+            reward = -10
+            reset = True
+            self.reset()
         else:
-            self.snake.popleft() # Snake did not grow, pop end of tail
-            if self.is_out():
-                print('Wall hit :(')
-                reward = -10
-                reset = True
-                self.reset()
-            elif self.is_bitten():
-                print('Tail bitten :(')
-                reward = -10
-                reset = True
-                self.reset()
-            else:
-                reward = -1
-                reset = False
+            # Snake did not grow, pop end of tail
+            self.grid[self.snake.popleft()] = 0
+            reward = -1
+            reset = False
         return reward, reset
 
     def display(self):
         grid = np.zeros((self.grid_size, self.grid_size))
         for (row,col) in self.snake:
             grid[row,col] = -1
-        grid[self.food] = 1 
+        grid[self.food] = 1
 
         plt.ion()
         plt.imshow(grid, interpolation='nearest')
