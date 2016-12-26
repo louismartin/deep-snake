@@ -1,4 +1,4 @@
-from snake.snake import Snake
+from snake import Snake
 snake = Snake()
 
 snake.display()
