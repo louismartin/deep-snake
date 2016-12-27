@@ -36,14 +36,14 @@ hidden_layer = tf.nn.relu(hidden_layer)
 out_layer = tf.add(tf.matmul(hidden_layer, w2), b2)
 out_probs = tf.nn.softmax(out_layer)
 
-# define loss and optimizer
-epsilon = 1e-15
-log_probs = tf.log(tf.add(out_probs, epsilon))
-loss = tf.reduce_sum(tf.matmul(advantages,(tf.mul(y_true, log_probs))))
-optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
-
 # ------- Train ------- #
-def train(n_batch, n_iterations):
+def train(n_batch, n_iterations, learning_rate = 0.001):
+    
+    # define loss and optimizer
+    epsilon = 1e-15
+    log_probs = tf.log(tf.add(out_probs, epsilon))
+    loss = tf.reduce_sum(tf.matmul(advantages,(tf.mul(y_true, log_probs))))
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
 
     # initialize the variables
     init = tf.global_variables_initializer()
@@ -94,7 +94,7 @@ def train(n_batch, n_iterations):
 
                 # play THE SNAKE and get the reward associated to the action
                 reward, reset = snake.play(action)
-                if reward == 100:
+                if reward == 20:
                     fruits_count += 1
                 rewards_running += [reward] 
 

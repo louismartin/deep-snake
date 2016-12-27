@@ -62,7 +62,7 @@ class Snake:
         if self.head == self.food:
             #print('Food eaten :)')
             self.spawn_food()
-            reward = +10
+            reward = +20
             reset = False
         else:
             self.snake.popleft() # Snake did not grow, pop end of tail
