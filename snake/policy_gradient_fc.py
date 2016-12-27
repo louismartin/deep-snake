@@ -139,14 +139,14 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
         plt.plot(avg_lifetime)
         plt.title('Average lifetime')
         plt.xlabel('Iteration')
-        plt.show()
         plt.savefig('weights/average_lifetime_' + settings + '.png')
+        plt.show()
         
         plt.plot(avg_reward)
         plt.title('Average reward')
         plt.xlabel('Iteration')
-        plt.show()
         plt.savefig('graphs/average_reward_' + settings + '.png')
+        plt.show()
 
 # ---- Test ---- #
 def test(settings = 'base', n_iterations = 100, n_hidden = 200):
