@@ -6,3 +6,6 @@ venv
 **/report/*.out
 **/report/*.fls
 **/report/*.fdb_latexmk
+
+# Mac stuff
+.DS_Store
