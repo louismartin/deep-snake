@@ -4,9 +4,12 @@ from collections import deque
 from random import randint
 
 class Snake:
-    def __init__(self, grid_size=5, snake_length=4, verbose=0):
+    def __init__(self, grid_size=5, snake_length=4,
+                 rewards={'nothing':-1, 'bitten':-10, 'out':-10, 'food':100},
+                 verbose=0):
         self.grid_size = grid_size
         self.snake_length = snake_length
+        self.rewards = rewards
         self.verbose = verbose
         # TODO: add idle action ? (Check if performance increases)
         self.actions = {
@@ -16,6 +19,7 @@ class Snake:
             3: (+1,0)  # Move down
         }
         self.reset()
+        self._reset = False
 
     def reset(self):
         # Position of the snake; leftmost element is the head,
@@ -27,30 +31,24 @@ class Snake:
         for (row,col) in self.snake:
             self.grid[row,col] = -1
         self.spawn_food()
+        self.is_out = False
+        self.is_bitten = False
+        self._reset = True
 
     @property
     def head(self):
         return self.snake[-1]
-
-    @property
-    def tail(self): # TODO: might not be fast (for is_bitten)
-        return list(self.snake)[:-1]
-
-    def is_bitten(self):
-        if self.head in self.tail:
-            return True
-        else:
-            return False
 
     def move(self, row_inc, col_inc):
         (row, col) = self.head
         (row, col) = (row + row_inc, col + col_inc)
         if row<0 or row>=self.grid_size or col<0 or col>=self.grid_size:
             self.is_out = True
+        elif self.grid[(row,col)] == -1:
+            self.is_bitten = True
         else:
             self.snake.append((row, col))
             self.grid[(row, col)] = -1
-            self.is_out = False
 
     def spawn_food(self):
         self.food = (randint(0,self.grid_size-1), randint(0,self.grid_size-1))
@@ -66,24 +64,20 @@ class Snake:
         if self.head == self.food:
             if self.verbose: print('Food eaten :)')
             self.spawn_food()
-            reward = +20
-            reset = False
-        elif self.is_bitten():
+            reward = self.rewards['food']
+        elif self.is_bitten:
             if self.verbose: print('Tail bitten :(')
-            reward = -10
-            reset = True
+            reward = self.rewards['bitten']
             self.reset()
         elif self.is_out:
             if self.verbose: print('Wall hit :(')
-            reward = -10
-            reset = True
+            reward = self.rewards['out']
             self.reset()
         else:
             # Snake did not grow, pop end of tail
             self.grid[self.snake.popleft()] = 0
-            reward = -1
-            reset = False
-        return reward, reset
+            reward =  self.rewards['nothing']
+        return reward, self._reset
 
     def display(self):
         plt.ion()
