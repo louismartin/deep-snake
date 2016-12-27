@@ -12,3 +12,6 @@ venv
 
 # Notebooks for tests
 *.ipynb
+
+# cache
+*.pyc

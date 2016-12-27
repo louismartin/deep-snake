@@ -1,12 +1,15 @@
-# ------- Setup ------ #
+# -------- Setup ------- #
 #load useful libraries
 import numpy as np
 import tensorflow as tf
+import pickle as pkl
+
+from time import time
 from numpy import random
 from tools import sample_from_policy
 
 # load THE SNAKE
-from snake.snake import Snake
+from snake import Snake
 snake = Snake()
 
 # define parameters
@@ -39,7 +42,7 @@ log_probs = tf.log(tf.add(out_probs, epsilon))
 loss = tf.reduce_sum(tf.matmul(advantages,(tf.mul(y_true, log_probs))))
 optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
 
-# ------ Train ------ #
+# ------- Train ------- #
 def train(n_batch, n_iterations):
 
     # initialize the variables
@@ -48,12 +51,13 @@ def train(n_batch, n_iterations):
     # initialize counts
     games_count = 0
     iterations_count = 0
-
+    running_time = time()
+    
     with tf.Session() as sess:
 
         # initialize variables
         sess.run(init)
-
+        
         # used later to save variables for the batch
         frames_stacked = []
         targets_stacked = []
@@ -102,14 +106,17 @@ def train(n_batch, n_iterations):
             life_time.append(len(rewards_running)*1.)
             rewards_stacked.append([np.sum(rewards_running)] * len(rewards_running)) # TODO: add gamma factor
 
-
             # every batch
             if games_count % n_batch == 0: 
                 
-                # display every 10 batches
+                #update counts
+                iterations_count += 1
+                
+                # display every 100 batches
                 if iterations_count % 10 == 0:
-                    print("Batch %d, average lifetime %.2f, fruits eaten %d" %(iterations_count + 1, np.mean(life_time), fruits_count))
-
+                    print('Batch %d, average lifetime %.2f, fruits eaten %d, time %d sec' %(iterations_count, np.mean(life_time), fruits_count, time() - running_time))
+                    running_time = time()
+                    
                 # stack frames, targets and rewards
                 frames_stacked = np.vstack(frames_stacked)
                 targets_stacked = np.vstack(targets_stacked)
@@ -123,20 +130,24 @@ def train(n_batch, n_iterations):
                 # backpropagate 
                 sess.run([optimizer, loss], feed_dict={input_frames: frames_stacked, y_true: targets_stacked, advantages: rewards_stacked})
 
-                # update variables
-                iterations_count += 1
+                # reset variables
                 frames_stacked = []
                 targets_stacked = []
                 rewards_stacked = []
                 life_time = []
                 fruits_count = 0
-
-        return w1.eval(), b1.eval(), w2.eval(), b2.eval()   
+        
+        # save model
+        print('Saving model to weights.p')
+        pkl.dump((w1.eval(), b1.eval(), w2.eval(), b2.eval()), open('weights.p','w'))
+  
     
-# ---- Test ---- #
-def test(weights):
+# ------- Test ------- #
+def test(weights_path):
      
     # asssign weights
+    print('Loading model')
+    weights = pkl.load(open('weights.p', 'rb'))
     assign_w1 = tf.assign(w1, weights[0])
     assign_b1 = tf.assign(b1, weights[1])
     assign_w2 = tf.assign(w2, weights[2])
@@ -174,7 +185,7 @@ def test(weights):
             print(policy)
             
             # sample action from returned policy 
-            action = sample_from_policy(policy)
+            action = np.argmax(policy)
             print(action)
             # play THE SNAKE and get the reward associated to the action
             reward, reset = snake.play(action)
