@@ -4,7 +4,7 @@ from collections import deque
 from random import randint
 
 class Snake:
-    def __init__(self, grid_size=5, snake_length=4,
+    def __init__(self, grid_size=5, snake_length=3,
                  rewards={'nothing':-1, 'bitten':-10, 'out':-10, 'food':100},
                  verbose=0):
         self.grid_size = grid_size
@@ -26,7 +26,8 @@ class Snake:
         # the rest is the tail
         # Example: snake = [(0,0), (0,1), (0,2)]
         self.grid = np.zeros((self.grid_size, self.grid_size))
-        snake = [(0,col) for col in range(self.snake_length)]
+        row_init = randint(0, self.grid_size - 1)
+        snake = [(row_init, col) for col in range(self.snake_length)]
         self.snake = deque(snake) # deque for fast FIFO queue
         for (row,col) in self.snake:
             self.grid[row,col] = -1

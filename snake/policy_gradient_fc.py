@@ -60,7 +60,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
 
             # initialize snake environment and some variables
             snake = Snake()
-            frame_curr = snake.grid
+            frame_curr = np.zeros((snake.grid_size, snake.grid_size))
             rewards_running = []
             reset = False
 
@@ -87,11 +87,15 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
                 reward, reset = snake.play(action)
                 if reward == rewards['food']:
                     fruits_count += 1
-                rewards_running += [reward]
 
-                # save targets
+                # save targets and rewards
                 targets_stacked.append(target)
-
+                rewards_running.append(reward)
+                
+                # to avoid infinite loops which can make one game very long
+                if len(rewards_running) > 50:
+                    break
+ 
             # stack rewards
             games_count += 1
             lifetime.append(len(rewards_running)*1.)
@@ -102,7 +106,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
 
                 # display 
                 if iterations_count % (n_iterations//10) == 0:
-                    print("Batch #%d, average lifetime %.2f, fruits eaten %d, games played: %d, time %d sec" %
+                    print("Batch #%d, average lifetime: %.2f, fruits eaten: %d, games played: %d, time: %d sec" %
                             (iterations_count, np.mean(lifetime), fruits_count, games_count, time() - running_time))
                     running_time = time()
 
@@ -119,9 +123,9 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
                 std = np.std(rewards_stacked)
                 if std != 0: 
                     rewards_stacked /= std
-
+     
                 # backpropagate
-                sess.run([optimizer, loss], feed_dict={input_frames: frames_stacked, y_played: targets_stacked, advantages: rewards_stacked})
+                sess.run(optimizer, feed_dict={input_frames: frames_stacked, y_played: targets_stacked, advantages: rewards_stacked})
 
                 # reset variables
                 frames_stacked = []
@@ -139,7 +143,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
         plt.plot(avg_lifetime)
         plt.title('Average lifetime')
         plt.xlabel('Iteration')
-        plt.savefig('weights/average_lifetime_' + settings + '.png')
+        plt.savefig('graphs/average_lifetime_' + settings + '.png')
         plt.show()
         
         plt.plot(avg_reward)
@@ -185,7 +189,7 @@ def test(settings = 'base', n_iterations = 100, n_hidden = 200):
         sess.run(assign_b2)
 
         # loop for n games
-        n = 10
+        n = 1
         for i in range(n):
             # initialize snake environment and some variables
             snake = Snake()
@@ -197,14 +201,20 @@ def test(settings = 'base', n_iterations = 100, n_hidden = 200):
                 # get current frame
                 frame_prev = np.copy(frame_curr)
                 frame_curr = snake.grid
-
+                print(frame_curr)
+                
                 # forward previous and current frames
                 last_two_frames = np.reshape(np.hstack((frame_prev, frame_curr)), (1, n_input))
                 policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : last_two_frames}))
 
                 # sample action from returned policy
                 action = np.argmax(policy)
-                
+                print(policy)
+                print(action)
                 # play THE SNAKE and get the reward associated to the action
                 reward, reset = snake.play(action)
                 rewards_running += [reward]
+                
+                # to avoid infinite loops which can make one game very long
+                if len(rewards_running) > 50:
+                    break
