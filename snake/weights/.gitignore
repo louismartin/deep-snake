@@ -1,0 +1,3 @@
+# Ignore everything except this file for the folder to be committed
+*
+!.gitignore
