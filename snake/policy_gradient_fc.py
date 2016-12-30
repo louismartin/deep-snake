@@ -12,22 +12,22 @@ from models.model_base import model_forward
 
 # ------- Train ------- #
 def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning_rate = 0.001, rewards = {'nothing':-1, 'bitten':-10, 'out':-10, 'food':100}, settings = 'base'):
-    
+
     # load THE SNAKE
     snake = Snake(rewards = rewards)
 
     # initialize parameters
     n_input = 2 * snake.grid_size * snake.grid_size
     n_classes = 4
-    
+
     # define placeholders for inputs and outputs
     input_frames = tf.placeholder(tf.float32, [None, n_input])
     y_played = tf.placeholder(tf.float32, [None, n_classes])
     advantages = tf.placeholder(tf.float32, [1, None])
-    
+
     # load model
     out_probs, weights = model_forward(input_frames, n_input, n_hidden, n_classes)
-    
+
     # define loss and optimizer
     epsilon = 1e-15
     log_probs = tf.log(tf.add(out_probs, epsilon))
@@ -36,7 +36,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
 
     # initialize the variables
     init = tf.global_variables_initializer()
-   
+
     # initialize counts
     games_count = 0
     iterations_count = 0
@@ -46,7 +46,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
 
         # initialize variables
         sess.run(init)
-        
+
         # used later to save variables for the batch
         frames_stacked = []
         targets_stacked = []
@@ -59,13 +59,12 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
         while iterations_count < n_iterations:
 
             # initialize snake environment and some variables
-            snake = Snake()
+            snake.reset()
             frame_curr = np.zeros((snake.grid_size, snake.grid_size))
             rewards_running = []
-            reset = False
 
             # loop for one game
-            while not reset:
+            while not snake.game_over:
 
                 # get current frame
                 frame_prev = np.copy(frame_curr)
@@ -84,18 +83,18 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
                 target[action] = 1
 
                 # play THE SNAKE and get the reward associated to the action
-                reward, reset = snake.play(action)
-                if reward == rewards['food']:
+                reward = snake.play(action)
+                if snake.is_food_eaten:
                     fruits_count += 1
 
                 # save targets and rewards
                 targets_stacked.append(target)
                 rewards_running.append(reward)
-                
+
                 # to avoid infinite loops which can make one game very long
                 if len(rewards_running) > 50:
                     break
- 
+
             # stack rewards
             games_count += 1
             lifetime.append(len(rewards_running)*1.)
@@ -104,7 +103,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
             if games_count % n_batch == 0:
                 iterations_count += 1
 
-                # display 
+                # display
                 if iterations_count % (n_iterations//10) == 0:
                     print("Batch #%d, average lifetime: %.2f, fruits eaten: %d, games played: %d, time: %d sec" %
                             (iterations_count, np.mean(lifetime), fruits_count, games_count, time() - running_time))
@@ -117,13 +116,13 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
                 rewards_stacked = np.reshape(rewards_stacked, (1, len(rewards_stacked)))*1.
                 avg_lifetime.append(np.mean(lifetime))
                 avg_reward.append(np.mean(rewards_stacked))
-                                  
+
                 # normalize rewards
                 rewards_stacked -= np.mean(rewards_stacked)
                 std = np.std(rewards_stacked)
-                if std != 0: 
+                if std != 0:
                     rewards_stacked /= std
-     
+
                 # backpropagate
                 sess.run(optimizer, feed_dict={input_frames: frames_stacked, y_played: targets_stacked, advantages: rewards_stacked})
 
@@ -145,7 +144,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
         plt.xlabel('Iteration')
         plt.savefig('graphs/average_lifetime_' + settings + '.png')
         plt.show()
-        
+
         plt.plot(avg_reward)
         plt.title('Average reward')
         plt.xlabel('Iteration')
@@ -154,7 +153,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
 
 # ---- Test ---- #
 def test(settings = 'base', n_iterations = 100, n_hidden = 200):
-    
+
     # load THE SNAKE
     snake = Snake()
 
@@ -165,11 +164,11 @@ def test(settings = 'base', n_iterations = 100, n_hidden = 200):
     # load model
     input_frames = tf.placeholder(tf.float32, [None, n_input])
     out_probs, weights = model_forward(input_frames, n_input, n_hidden, n_classes)
-    
+
     # asssign weights
     model_path = 'weights/weights_fc_' + settings + '.p'
     print('Loading model from ' + model_path)
-    
+
     weights_trained = pkl.load(open(model_path, 'rb'))
     assign_w1 = tf.assign(weights['w1'], weights_trained['w1'])
     assign_b1 = tf.assign(weights['b1'], weights_trained['b1'])
@@ -189,32 +188,29 @@ def test(settings = 'base', n_iterations = 100, n_hidden = 200):
         sess.run(assign_b2)
 
         # loop for n games
-        n = 1
+        n = 10
         for i in range(n):
             # initialize snake environment and some variables
-            snake = Snake()
+            snake.reset()
             frame_curr = snake.grid
             rewards_running = []
-            reset = False
-            while not reset:
+
+            while not snake.game_over:
                 snake.display()
                 # get current frame
                 frame_prev = np.copy(frame_curr)
                 frame_curr = snake.grid
-                print(frame_curr)
-                
+
                 # forward previous and current frames
                 last_two_frames = np.reshape(np.hstack((frame_prev, frame_curr)), (1, n_input))
                 policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : last_two_frames}))
 
                 # sample action from returned policy
                 action = np.argmax(policy)
-                print(policy)
-                print(action)
+
                 # play THE SNAKE and get the reward associated to the action
-                reward, reset = snake.play(action)
+                reward = snake.play(action)
                 rewards_running += [reward]
-                
                 # to avoid infinite loops which can make one game very long
                 if len(rewards_running) > 50:
                     break
