@@ -15,7 +15,10 @@ class FullyConnected:
         b2 = tf.Variable(tf.zeros([1, self.n_classes]))
         self.weights = {'w1':w1, 'b1':b1, 'w2':w2, 'b2':b2}
 
-        # define network structure
+        # Define network structure
+        # Reshape/flatten input to linear vector
+
+        input_frames = tf.reshape(input_frames, shape=[-1, self.n_input])
         hidden_layer = tf.add(tf.matmul(input_frames, w1), b1)
         hidden_layer = tf.nn.relu(hidden_layer)
         out_layer = tf.add(tf.matmul(hidden_layer, w2), b2)

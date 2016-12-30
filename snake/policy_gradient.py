@@ -11,7 +11,7 @@ from tools import sample_from_policy, discount_rewards
 # ------- Train ------- #
 def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate=0.001, n_frames=2):
     # define placeholders for inputs and outputs
-    input_frames = tf.placeholder(tf.float32, [None, model.n_input])
+    input_frames = tf.placeholder(tf.float32, [None, snake.grid_size, snake.grid_size, n_frames])
     y_played = tf.placeholder(tf.float32, [None, model.n_classes])
     advantages = tf.placeholder(tf.float32, [1, None])
 
@@ -39,6 +39,7 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
         sess.run(init)
 
         # used later to save variables for the batch
+        all_frames = []
         frames_stacked = []
         targets_stacked = []
         rewards_stacked = []
@@ -46,25 +47,28 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
         avg_lifetime = []
         avg_reward = []
         fruits_count = 0
-
         while iterations_count < n_iterations:
 
             # initialize snake environment and some variables
             snake.reset()
-            frame_curr = np.zeros((snake.grid_size, snake.grid_size))
+            # Add frames filled of zeros to be able to consider n_frames at the
+            # begining.
+            for i in range(n_frames-1):
+                all_frames.append(np.zeros((snake.grid_size, snake.grid_size)))
             rewards_running = []
 
             # loop for one game
             while not snake.game_over:
 
                 # get current frame
-                frame_prev = np.copy(frame_curr)
-                frame_curr = snake.grid
+                all_frames.append(snake.grid)
 
-                # forward previous and current frames
-                last_two_frames = np.reshape(np.hstack((frame_prev, frame_curr)), (1, model.n_input))
-                frames_stacked.append(last_two_frames)
-                policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : last_two_frames}))
+                # forward current and previous frames
+                frames = np.array(all_frames[-n_frames:])
+                # Transform to shape (1,grid_size,grid_size,n_frames)
+                frames = np.expand_dims(frames.transpose((1,2,0)), 0)
+                frames_stacked.append(frames)
+                policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : frames}))
 
                 # sample action from returned policy
                 action = sample_from_policy(policy)
@@ -142,14 +146,13 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
         plt.show()
 
 # ---- Test ---- #
-def test(model, snake):
+def test(model, snake, n_frames=2):
 
     # initialize parameters
-    n_input = 2 * snake.grid_size * snake.grid_size
     n_classes = 4
 
     # load model
-    input_frames = tf.placeholder(tf.float32, [None, n_input])
+    input_frames = tf.placeholder(tf.float32, [None, snake.grid_size, snake.grid_size, n_frames])
     out_probs = model.model_forward(input_frames)
 
     # asssign weights
@@ -179,18 +182,22 @@ def test(model, snake):
         for i in range(n):
             # initialize snake environment and some variables
             snake.reset()
-            frame_curr = snake.grid
+            all_frames = []
             rewards_running = []
+            for i in range(n_frames-1):
+                all_frames.append(np.zeros((snake.grid_size, snake.grid_size)))
 
             while not snake.game_over:
                 snake.display()
-                # get current frame
-                frame_prev = np.copy(frame_curr)
-                frame_curr = snake.grid
 
-                # forward previous and current frames
-                last_two_frames = np.reshape(np.hstack((frame_prev, frame_curr)), (1, n_input))
-                policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : last_two_frames}))
+                # get current frame
+                all_frames.append(snake.grid)
+                # forward current and previous frames
+                frames = np.array(all_frames[-n_frames:])
+                # Transform to shape (1,grid_size,grid_size,n_frames)
+                frames = np.expand_dims(frames.transpose((1,2,0)), 0)
+
+                policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : frames}))
 
                 # sample action from returned policy
                 action = np.argmax(policy)
