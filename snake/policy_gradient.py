@@ -5,6 +5,7 @@ import pickle as pkl
 import matplotlib.pyplot as plt
 
 from time import time
+from collections import deque
 from numpy import random
 from tools import sample_from_policy, discount_rewards
 
@@ -39,7 +40,6 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
         sess.run(init)
 
         # used later to save variables for the batch
-        all_frames = []
         frames_stacked = []
         targets_stacked = []
         rewards_stacked = []
@@ -53,18 +53,19 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
             snake.reset()
             # Add frames filled of zeros to be able to consider n_frames at the
             # begining.
-            for i in range(n_frames-1):
-                all_frames.append(np.zeros((snake.grid_size, snake.grid_size)))
+            running_frames = deque()
+            for i in range(n_frames):
+                running_frames.append(np.zeros((snake.grid_size, snake.grid_size)))
             rewards_running = []
 
             # loop for one game
             while not snake.game_over:
 
-                # get current frame
-                all_frames.append(snake.grid)
-
+                # get current frame and remove last frame
+                running_frames.popleft()
+                running_frames.append(snake.grid)
                 # forward current and previous frames
-                frames = np.array(all_frames[-n_frames:])
+                frames = np.array(running_frames)
                 # Transform to shape (1,grid_size,grid_size,n_frames)
                 frames = np.expand_dims(frames.transpose((1,2,0)), 0)
                 frames_stacked.append(frames)
@@ -182,21 +183,22 @@ def test(model, snake, n_frames=2):
         for i in range(n):
             # initialize snake environment and some variables
             snake.reset()
-            all_frames = []
+            running_frames = deque()
             rewards_running = []
-            for i in range(n_frames-1):
-                all_frames.append(np.zeros((snake.grid_size, snake.grid_size)))
+            for i in range(n_frames):
+                running_frames.append(np.zeros((snake.grid_size, snake.grid_size)))
 
             while not snake.game_over:
                 snake.display()
 
-                # get current frame
-                all_frames.append(snake.grid)
+                # get current frame and remove last frame
+                running_frames.popleft()
+                running_frames.append(snake.grid)
+
                 # forward current and previous frames
-                frames = np.array(all_frames[-n_frames:])
+                frames = np.array(running_frames)
                 # Transform to shape (1,grid_size,grid_size,n_frames)
                 frames = np.expand_dims(frames.transpose((1,2,0)), 0)
-
                 policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : frames}))
 
                 # sample action from returned policy
