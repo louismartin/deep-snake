@@ -61,13 +61,16 @@ class ConvNet:
             'wc2': tf.Variable(tf.random_normal([3, 3, 16, 32])),
             'bc2': tf.Variable(tf.random_normal([32])),
             # fully connected, 7*7*64 inputs, 1024 outputs
-            'wd1': tf.Variable(tf.random_normal([5*5*32, 128])),
+            'wd1': tf.Variable(tf.random_normal([3*3*32, 128])),
             'bd1': tf.Variable(tf.random_normal([128])),
             # 1024 inputs, 10 outputs (class prediction)
             'wout': tf.Variable(tf.random_normal([128, n_classes])),
             'bout': tf.Variable(tf.random_normal([n_classes]))
         }
         self.weights = weights
+
+        # TODO: add fire modules (1x1 convolutions for shielding 3x3 conv)
+        # TODO: add max pooling
         # Convolution Layer
         conv1 = conv2d(input_frames, weights['wc1'], weights['bc1'])
         # Max Pooling (down-sampling)
@@ -76,7 +79,7 @@ class ConvNet:
         # Convolution Layer
         conv2 = conv2d(conv1, weights['wc2'], weights['bc2'])
         # Max Pooling (down-sampling)
-        #conv2 = maxpool2d(conv2, k=2)
+        conv2 = maxpool2d(conv2, k=2)
 
         # Fully connected layer
         # Reshape conv2 output to fit fully connected layer input
