@@ -9,14 +9,14 @@ from numpy import random
 from tools import sample_from_policy, discount_rewards
 
 # ------- Train ------- #
-def train(model, snake, n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning_rate = 0.001, settings = 'base'):
+def train(model, snake, n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning_rate = 0.001):
     # define placeholders for inputs and outputs
     input_frames = tf.placeholder(tf.float32, [None, model.n_input])
     y_played = tf.placeholder(tf.float32, [None, model.n_classes])
     advantages = tf.placeholder(tf.float32, [1, None])
 
     # load model
-    print(model.__class__.__name__)
+    print('Loading %s model' % model.__class__.__name__)
     out_probs = model.model_forward(input_frames)
 
     # define loss and optimizer
@@ -124,7 +124,7 @@ def train(model, snake, n_batch = 100, n_iterations = 100, n_hidden = 200, gamma
                 fruits_count = 0
 
         # save model
-        model_path = 'weights/weights_fc_' + settings + '.p'
+        model_path = 'weights/weights_fc_' + model.__class__.__name__ + '.p'
         print('Saving model to ' + model_path)
         pkl.dump({k: v.eval() for k, v in model.weights.items()}, open(model_path,'w'))
 
@@ -132,17 +132,17 @@ def train(model, snake, n_batch = 100, n_iterations = 100, n_hidden = 200, gamma
         plt.plot(avg_lifetime)
         plt.title('Average lifetime')
         plt.xlabel('Iteration')
-        plt.savefig('graphs/average_lifetime_' + settings + '.png')
+        plt.savefig('graphs/average_lifetime_' + model.__class__.__name__ + '.png')
         plt.show()
 
         plt.plot(avg_reward)
         plt.title('Average reward')
         plt.xlabel('Iteration')
-        plt.savefig('graphs/average_reward_' + settings + '.png')
+        plt.savefig('graphs/average_reward_' + model.__class__.__name__ + '.png')
         plt.show()
 
 # ---- Test ---- #
-def test(model, snake, settings = 'base', n_iterations = 100, n_hidden = 200):
+def test(model, snake, n_iterations = 100, n_hidden = 200):
 
     # initialize parameters
     n_input = 2 * snake.grid_size * snake.grid_size
@@ -153,7 +153,7 @@ def test(model, snake, settings = 'base', n_iterations = 100, n_hidden = 200):
     out_probs = model.model_forward(input_frames)
 
     # asssign weights
-    model_path = 'weights/weights_fc_' + settings + '.p'
+    model_path = 'weights/weights_fc_' + model.__class__.__name__ + '.p'
     print('Loading model from ' + model_path)
 
     weights_trained = pkl.load(open(model_path, 'rb'))
