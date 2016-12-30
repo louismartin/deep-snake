@@ -9,7 +9,7 @@ from numpy import random
 from tools import sample_from_policy, discount_rewards
 
 # ------- Train ------- #
-def train(model, snake, n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning_rate = 0.001):
+def train(model, snake, batch_size=100, n_iterations=100, n_hidden=200, gamma=1, learning_rate=0.001):
     # define placeholders for inputs and outputs
     input_frames = tf.placeholder(tf.float32, [None, model.n_input])
     y_played = tf.placeholder(tf.float32, [None, model.n_classes])
@@ -91,7 +91,7 @@ def train(model, snake, n_batch = 100, n_iterations = 100, n_hidden = 200, gamma
             lifetime.append(len(rewards_running)*1.)
             rewards_stacked.append(discount_rewards(rewards_running, gamma))
 
-            if games_count % n_batch == 0:
+            if games_count % batch_size == 0:
                 iterations_count += 1
 
                 # display
@@ -142,7 +142,7 @@ def train(model, snake, n_batch = 100, n_iterations = 100, n_hidden = 200, gamma
         plt.show()
 
 # ---- Test ---- #
-def test(model, snake, n_iterations = 100, n_hidden = 200):
+def test(model, snake, n_iterations=100, n_hidden=200):
 
     # initialize parameters
     n_input = 2 * snake.grid_size * snake.grid_size
