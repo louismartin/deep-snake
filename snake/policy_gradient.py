@@ -1,50 +1,29 @@
-# -------- Setup ------- #
 #load useful libraries
 import numpy as np
 import tensorflow as tf
 import pickle as pkl
+import matplotlib.pyplot as plt
 
 from time import time
 from numpy import random
-from tools import sample_from_policy
-import matplotlib.pyplot as plt
+from tools import sample_from_policy, discount_rewards
 
-# load THE SNAKE
-from snake import Snake
-snake = Snake()
+# ------- Train ------- #
+def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate=0.001, n_frames=2):
+    # define placeholders for inputs and outputs
+    input_frames = tf.placeholder(tf.float32, [None, model.n_input])
+    y_played = tf.placeholder(tf.float32, [None, model.n_classes])
+    advantages = tf.placeholder(tf.float32, [1, None])
 
-# define parameters
-n_input = 2 * snake.grid_size * snake.grid_size
-n_hidden = 200
-n_classes = 4
+    # load model
+    print('Loading %s model' % model.__class__.__name__)
+    out_probs = model.model_forward(input_frames)
 
-# --- Policy Network --- #
-
-# define placeholders for inputs and outputs
-input_frames = tf.placeholder(tf.float32, [None, n_input])
-y_played = tf.placeholder(tf.float32, [None, n_classes])
-advantages = tf.placeholder(tf.float32, [1, None])
-
-# initialize weights
-w1 = tf.Variable(tf.truncated_normal([n_input, n_hidden]))
-b1 = tf.Variable(tf.zeros([1, n_hidden]))
-w2 = tf.Variable(tf.truncated_normal([n_hidden, n_classes]))
-b2 = tf.Variable(tf.zeros([1, n_classes]))
-
-# define network structure
-hidden_layer = tf.add(tf.matmul(input_frames, w1), b1)
-hidden_layer = tf.nn.relu(hidden_layer)
-out_layer = tf.add(tf.matmul(hidden_layer, w2), b2)
-out_probs = tf.nn.softmax(out_layer)
-
-# define loss and optimizer
-epsilon = 1e-15
-log_probs = tf.log(tf.add(out_probs, epsilon))
-loss = tf.reduce_sum(tf.matmul(advantages,(tf.mul(y_played, log_probs))))
-optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
-
-# ------ Train ------ #
-def train(batch_size, n_iterations):
+    # define loss and optimizer
+    epsilon = 1e-15
+    log_probs = tf.log(tf.add(out_probs, epsilon))
+    loss = tf.reduce_sum(tf.matmul(advantages,(tf.mul(y_played, log_probs))))
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
 
     # initialize the variables
     init = tf.global_variables_initializer()
@@ -52,7 +31,7 @@ def train(batch_size, n_iterations):
     # initialize counts
     games_count = 0
     iterations_count = 0
-    running_time = time()
+    start_time = time()
 
     with tf.Session() as sess:
 
@@ -65,25 +44,25 @@ def train(batch_size, n_iterations):
         rewards_stacked = []
         lifetime = []
         avg_lifetime = []
+        avg_reward = []
         fruits_count = 0
 
         while iterations_count < n_iterations:
 
             # initialize snake environment and some variables
-            snake = Snake()
-            frame_curr = snake.grid
+            snake.reset()
+            frame_curr = np.zeros((snake.grid_size, snake.grid_size))
             rewards_running = []
-            reset = False
 
             # loop for one game
-            while not reset:
+            while not snake.game_over:
 
                 # get current frame
                 frame_prev = np.copy(frame_curr)
                 frame_curr = snake.grid
 
                 # forward previous and current frames
-                last_two_frames = np.reshape(np.hstack((frame_prev, frame_curr)), (1, n_input))
+                last_two_frames = np.reshape(np.hstack((frame_prev, frame_curr)), (1, model.n_input))
                 frames_stacked.append(last_two_frames)
                 policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : last_two_frames}))
 
@@ -95,27 +74,30 @@ def train(batch_size, n_iterations):
                 target[action] = 1
 
                 # play THE SNAKE and get the reward associated to the action
-                reward, reset = snake.play(action)
-                if reward == 100:
+                reward = snake.play(action)
+                if snake.is_food_eaten:
                     fruits_count += 1
-                rewards_running += [reward]
 
-                # save targets
+                # save targets and rewards
                 targets_stacked.append(target)
+                rewards_running.append(reward)
+
+                # to avoid infinite loops which can make one game very long
+                if len(rewards_running) > 50:
+                    break
 
             # stack rewards
             games_count += 1
             lifetime.append(len(rewards_running)*1.)
-            rewards_stacked.append([np.sum(rewards_running)] * len(rewards_running)) # TODO: add gamma factor
+            rewards_stacked.append(discount_rewards(rewards_running, gamma))
 
             if games_count % batch_size == 0:
                 iterations_count += 1
 
-                # display every 10 batches
-                if iterations_count % 10 == 0:
-                    print("Batch #%d, average lifetime %.2f, fruits eaten %d, games played: %d, time %d sec" %
-                            (iterations_count, np.mean(lifetime), fruits_count, games_count, time() - running_time))
-                    running_time = time()
+                # display
+                if iterations_count % (n_iterations//10) == 0:
+                    print("Batch #%d, average lifetime: %.2f, fruits eaten: %d, games played: %d, time: %d sec" %
+                            (iterations_count, np.mean(lifetime), fruits_count, games_count, time() - start_time))
 
                 # stack frames, targets and rewards
                 frames_stacked = np.vstack(frames_stacked)
@@ -123,6 +105,7 @@ def train(batch_size, n_iterations):
                 rewards_stacked = np.hstack(rewards_stacked)
                 rewards_stacked = np.reshape(rewards_stacked, (1, len(rewards_stacked)))*1.
                 avg_lifetime.append(np.mean(lifetime))
+                avg_reward.append(np.mean(rewards_stacked))
 
                 # normalize rewards
                 rewards_stacked -= np.mean(rewards_stacked)
@@ -131,7 +114,7 @@ def train(batch_size, n_iterations):
                     rewards_stacked /= std
 
                 # backpropagate
-                sess.run([optimizer, loss], feed_dict={input_frames: frames_stacked, y_played: targets_stacked, advantages: rewards_stacked})
+                sess.run(optimizer, feed_dict={input_frames: frames_stacked, y_played: targets_stacked, advantages: rewards_stacked})
 
                 # reset variables
                 frames_stacked = []
@@ -140,26 +123,44 @@ def train(batch_size, n_iterations):
                 lifetime = []
                 fruits_count = 0
 
+        # save model
+        model_path = 'weights/weights_fc_' + model.__class__.__name__ + '.p'
+        print('Saving model to ' + model_path)
+        pkl.dump({k: v.eval() for k, v in model.weights.items()}, open(model_path,'w'))
+
         # Plot useful statistics
         plt.plot(avg_lifetime)
         plt.title('Average lifetime')
+        plt.xlabel('Iteration')
+        plt.savefig('graphs/average_lifetime_' + model.__class__.__name__ + '.png')
         plt.show()
-        plt.savefig('average_lifetime.png')
 
-        # save model
-        print('Saving model to weights.p')
-        pkl.dump((w1.eval(), b1.eval(), w2.eval(), b2.eval()), open('weights.p','w'))
+        plt.plot(avg_reward)
+        plt.title('Average reward')
+        plt.xlabel('Iteration')
+        plt.savefig('graphs/average_reward_' + model.__class__.__name__ + '.png')
+        plt.show()
 
 # ---- Test ---- #
-def test(weights_path):
+def test(model, snake):
+
+    # initialize parameters
+    n_input = 2 * snake.grid_size * snake.grid_size
+    n_classes = 4
+
+    # load model
+    input_frames = tf.placeholder(tf.float32, [None, n_input])
+    out_probs = model.model_forward(input_frames)
 
     # asssign weights
-    print('Loading model')
-    weights = pkl.load(open('weights.p', 'rb'))
-    assign_w1 = tf.assign(w1, weights[0])
-    assign_b1 = tf.assign(b1, weights[1])
-    assign_w2 = tf.assign(w2, weights[2])
-    assign_b2 = tf.assign(b2, weights[3])
+    model_path = 'weights/weights_fc_' + model.__class__.__name__ + '.p'
+    print('Loading model from ' + model_path)
+
+    weights_trained = pkl.load(open(model_path, 'rb'))
+    assign_w1 = tf.assign(model.weights['w1'], weights_trained['w1'])
+    assign_b1 = tf.assign(model.weights['b1'], weights_trained['b1'])
+    assign_w2 = tf.assign(model.weights['w2'], weights_trained['w2'])
+    assign_b2 = tf.assign(model.weights['b2'], weights_trained['b2'])
 
     # initialize the variables
     init = tf.global_variables_initializer()
@@ -173,16 +174,15 @@ def test(weights_path):
         sess.run(assign_w2)
         sess.run(assign_b2)
 
-
         # loop for n games
         n = 10
         for i in range(n):
             # initialize snake environment and some variables
-            snake = Snake()
+            snake.reset()
             frame_curr = snake.grid
             rewards_running = []
-            reset = False
-            while not reset:
+
+            while not snake.game_over:
                 snake.display()
                 # get current frame
                 frame_prev = np.copy(frame_curr)
@@ -194,7 +194,10 @@ def test(weights_path):
 
                 # sample action from returned policy
                 action = np.argmax(policy)
-                print(action)
+
                 # play THE SNAKE and get the reward associated to the action
-                reward, reset = snake.play(action)
+                reward = snake.play(action)
                 rewards_running += [reward]
+                # to avoid infinite loops which can make one game very long
+                if len(rewards_running) > 50:
+                    break
