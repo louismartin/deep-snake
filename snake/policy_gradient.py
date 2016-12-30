@@ -160,10 +160,11 @@ def test(model, snake, n_frames=2):
     print('Loading model from ' + model_path)
 
     weights_trained = pkl.load(open(model_path, 'rb'))
-    assign_w1 = tf.assign(model.weights['w1'], weights_trained['w1'])
-    assign_b1 = tf.assign(model.weights['b1'], weights_trained['b1'])
-    assign_w2 = tf.assign(model.weights['w2'], weights_trained['w2'])
-    assign_b2 = tf.assign(model.weights['b2'], weights_trained['b2'])
+    assigns = []
+    for weight_key in weights_trained:
+        assert weight_key in model.weights
+        assign = tf.assign(model.weights[weight_key], weights_trained[weight_key])
+        assigns.append(assign)
 
     # initialize the variables
     init = tf.global_variables_initializer()
@@ -172,10 +173,9 @@ def test(model, snake, n_frames=2):
 
         # initialize variables
         sess.run(init)
-        sess.run(assign_w1)
-        sess.run(assign_b1)
-        sess.run(assign_w2)
-        sess.run(assign_b2)
+        # Load weights
+        for assign in assigns:
+            sess.run(assign)
 
         # loop for n games
         n = 10
