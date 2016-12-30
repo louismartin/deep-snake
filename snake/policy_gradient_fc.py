@@ -7,26 +7,17 @@ import matplotlib.pyplot as plt
 from time import time
 from numpy import random
 from tools import sample_from_policy, discount_rewards
-from snake import Snake
-from models.model_base import model_forward
 
 # ------- Train ------- #
-def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning_rate = 0.001, rewards = {'nothing':-1, 'bitten':-10, 'out':-10, 'food':100}, settings = 'base'):
-
-    # load THE SNAKE
-    snake = Snake(rewards = rewards)
-
-    # initialize parameters
-    n_input = 2 * snake.grid_size * snake.grid_size
-    n_classes = 4
-
+def train(model, snake, n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning_rate = 0.001, settings = 'base'):
     # define placeholders for inputs and outputs
-    input_frames = tf.placeholder(tf.float32, [None, n_input])
-    y_played = tf.placeholder(tf.float32, [None, n_classes])
+    input_frames = tf.placeholder(tf.float32, [None, model.n_input])
+    y_played = tf.placeholder(tf.float32, [None, model.n_classes])
     advantages = tf.placeholder(tf.float32, [1, None])
 
     # load model
-    out_probs, weights = model_forward(input_frames, n_input, n_hidden, n_classes)
+    print(model.__class__.__name__)
+    out_probs = model.model_forward(input_frames)
 
     # define loss and optimizer
     epsilon = 1e-15
@@ -71,7 +62,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
                 frame_curr = snake.grid
 
                 # forward previous and current frames
-                last_two_frames = np.reshape(np.hstack((frame_prev, frame_curr)), (1, n_input))
+                last_two_frames = np.reshape(np.hstack((frame_prev, frame_curr)), (1, model.n_input))
                 frames_stacked.append(last_two_frames)
                 policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : last_two_frames}))
 
@@ -135,7 +126,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
         # save model
         model_path = 'weights/weights_fc_' + settings + '.p'
         print('Saving model to ' + model_path)
-        pkl.dump({k: v.eval() for k, v in weights.items()}, open(model_path,'w'))
+        pkl.dump({k: v.eval() for k, v in model.weights.items()}, open(model_path,'w'))
 
         # Plot useful statistics
         plt.plot(avg_lifetime)
@@ -151,10 +142,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
         plt.show()
 
 # ---- Test ---- #
-def test(settings = 'base', n_iterations = 100, n_hidden = 200):
-
-    # load THE SNAKE
-    snake = Snake()
+def test(model, snake, settings = 'base', n_iterations = 100, n_hidden = 200):
 
     # initialize parameters
     n_input = 2 * snake.grid_size * snake.grid_size
@@ -162,17 +150,17 @@ def test(settings = 'base', n_iterations = 100, n_hidden = 200):
 
     # load model
     input_frames = tf.placeholder(tf.float32, [None, n_input])
-    out_probs, weights = model_forward(input_frames, n_input, n_hidden, n_classes)
+    out_probs = model.model_forward(input_frames)
 
     # asssign weights
     model_path = 'weights/weights_fc_' + settings + '.p'
     print('Loading model from ' + model_path)
 
     weights_trained = pkl.load(open(model_path, 'rb'))
-    assign_w1 = tf.assign(weights['w1'], weights_trained['w1'])
-    assign_b1 = tf.assign(weights['b1'], weights_trained['b1'])
-    assign_w2 = tf.assign(weights['w2'], weights_trained['w2'])
-    assign_b2 = tf.assign(weights['b2'], weights_trained['b2'])
+    assign_w1 = tf.assign(model.weights['w1'], weights_trained['w1'])
+    assign_b1 = tf.assign(model.weights['b1'], weights_trained['b1'])
+    assign_w2 = tf.assign(model.weights['w2'], weights_trained['w2'])
+    assign_b2 = tf.assign(model.weights['b2'], weights_trained['b2'])
 
     # initialize the variables
     init = tf.global_variables_initializer()
