@@ -40,7 +40,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
     # initialize counts
     games_count = 0
     iterations_count = 0
-    running_time = time()
+    start_time = time()
 
     with tf.Session() as sess:
 
@@ -106,8 +106,7 @@ def train(n_batch = 100, n_iterations = 100, n_hidden = 200, gamma = 1, learning
                 # display
                 if iterations_count % (n_iterations//10) == 0:
                     print("Batch #%d, average lifetime: %.2f, fruits eaten: %d, games played: %d, time: %d sec" %
-                            (iterations_count, np.mean(lifetime), fruits_count, games_count, time() - running_time))
-                    running_time = time()
+                            (iterations_count, np.mean(lifetime), fruits_count, games_count, time() - start_time))
 
                 # stack frames, targets and rewards
                 frames_stacked = np.vstack(frames_stacked)
