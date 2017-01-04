@@ -8,9 +8,10 @@ from time import time
 from collections import deque
 from numpy import random
 from tools import sample_from_policy, discount_rewards
+from tqdm import tqdm
 
 # ------- Train ------- #
-def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate=0.001, n_frames=2):
+def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate=0.001, n_frames=2, plot=True):
     print('Start training')
     # define placeholders for inputs and outputs
     input_frames = tf.placeholder(tf.float32, [None, snake.grid_size, snake.grid_size, n_frames])
@@ -30,7 +31,6 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
     # initialize the variables
     init = tf.global_variables_initializer()
 
-    start_time = time()
     with tf.Session() as sess:
 
         # initialize variables
@@ -44,7 +44,9 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
         avg_lifetime = []
         avg_reward = []
         fruits_count = 0
-        for iterations_count in range(n_iterations):
+        description = ''
+        pbar = tqdm(range(n_iterations), desc=description)
+        for iterations_count in pbar:
             # One iteration is a batch of batch_size games
             for game_count in range(batch_size):
                 # Play one game
@@ -94,10 +96,9 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
                 lifetime.append(len(rewards_running)*1.)
                 rewards_stacked.append(discount_rewards(rewards_running, gamma))
 
-            # display
-            if iterations_count % (n_iterations//10) == 0:
-                print("Batch #%d, average lifetime: %.2f, fruits eaten: %d, games played: %d, time: %d sec" %
-                        (iterations_count, np.mean(lifetime), fruits_count, iterations_count*batch_size, time() - start_time))
+            # Update progress bar description
+            description = 'Lifetime: {}, Fruits: {}'.format(np.mean(lifetime), fruits_count)
+            pbar.set_description(description)
 
             # stack frames, targets and rewards
             frames_stacked = np.vstack(frames_stacked)
@@ -128,18 +129,19 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
         print('Saving model to ' + model_path)
         pkl.dump({k: v.eval() for k, v in model.weights.items()}, open(model_path,'w'))
 
-        # Plot useful statistics
-        plt.plot(avg_lifetime)
-        plt.title('Average lifetime')
-        plt.xlabel('Iteration')
-        plt.savefig('graphs/average_lifetime_' + model.__class__.__name__ + '.png')
-        plt.show()
+        if plot:
+            # Plot useful statistics
+            plt.plot(avg_lifetime)
+            plt.title('Average lifetime')
+            plt.xlabel('Iteration')
+            plt.savefig('graphs/average_lifetime_' + model.__class__.__name__ + '.png')
+            plt.show()
 
-        plt.plot(avg_reward)
-        plt.title('Average reward')
-        plt.xlabel('Iteration')
-        plt.savefig('graphs/average_reward_' + model.__class__.__name__ + '.png')
-        plt.show()
+            plt.plot(avg_reward)
+            plt.title('Average reward')
+            plt.xlabel('Iteration')
+            plt.savefig('graphs/average_reward_' + model.__class__.__name__ + '.png')
+            plt.show()
 
 # ---- Test ---- #
 def test(model, snake, n_frames=2):

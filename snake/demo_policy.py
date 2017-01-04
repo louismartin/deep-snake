@@ -13,7 +13,7 @@ n_input = 2 * snake.grid_size * snake.grid_size
 model = ConvNet(n_frames=2, n_classes=4)
 
 start_time = time.time()
-train(model, snake, batch_size=200, n_iterations=2000, gamma=.95, learning_rate=0.001)
+train(model, snake, batch_size=100, n_iterations=100, gamma=.95, learning_rate=0.001, plot=False)
 end_time = time.time()
 print('Elapsed %.2f seconds' % (end_time - start_time))
 
