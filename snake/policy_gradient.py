@@ -30,11 +30,7 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
     # initialize the variables
     init = tf.global_variables_initializer()
 
-    # initialize counts
-    games_count = 0
-    iterations_count = 0
     start_time = time()
-
     with tf.Session() as sess:
 
         # initialize variables
@@ -48,86 +44,84 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
         avg_lifetime = []
         avg_reward = []
         fruits_count = 0
-        while iterations_count < n_iterations:
+        for iterations_count in range(n_iterations):
+            # One iteration is a batch of batch_size games
+            for game_count in range(batch_size):
+                # Play one game
+                # initialize snake environment and some variables
+                snake.reset()
+                # Add frames filled of zeros to be able to consider n_frames at the
+                # begining.
+                running_frames = deque()
+                for i in range(n_frames):
+                    running_frames.append(np.zeros((snake.grid_size, snake.grid_size)))
+                rewards_running = []
 
-            # initialize snake environment and some variables
-            snake.reset()
-            # Add frames filled of zeros to be able to consider n_frames at the
-            # begining.
-            running_frames = deque()
-            for i in range(n_frames):
-                running_frames.append(np.zeros((snake.grid_size, snake.grid_size)))
-            rewards_running = []
+                # loop for one game
+                while not snake.game_over:
 
-            # loop for one game
-            while not snake.game_over:
+                    # get current frame and remove last frame
+                    running_frames.popleft()
+                    running_frames.append(snake.grid)
+                    # forward current and previous frames
+                    frames = np.array(running_frames)
+                    # Transform to shape (1,grid_size,grid_size,n_frames)
+                    frames = np.expand_dims(frames.transpose((1,2,0)), 0)
+                    frames_stacked.append(frames)
+                    policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : frames}))
 
-                # get current frame and remove last frame
-                running_frames.popleft()
-                running_frames.append(snake.grid)
-                # forward current and previous frames
-                frames = np.array(running_frames)
-                # Transform to shape (1,grid_size,grid_size,n_frames)
-                frames = np.expand_dims(frames.transpose((1,2,0)), 0)
-                frames_stacked.append(frames)
-                policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : frames}))
+                    # sample action from returned policy
+                    action = sample_from_policy(policy)
 
-                # sample action from returned policy
-                action = sample_from_policy(policy)
+                    # build labels according to the sampled action
+                    target = np.zeros(4)
+                    target[action] = 1
 
-                # build labels according to the sampled action
-                target = np.zeros(4)
-                target[action] = 1
+                    # play THE SNAKE and get the reward associated to the action
+                    reward = snake.play(action)
+                    if snake.is_food_eaten:
+                        fruits_count += 1
 
-                # play THE SNAKE and get the reward associated to the action
-                reward = snake.play(action)
-                if snake.is_food_eaten:
-                    fruits_count += 1
+                    # save targets and rewards
+                    targets_stacked.append(target)
+                    rewards_running.append(reward)
 
-                # save targets and rewards
-                targets_stacked.append(target)
-                rewards_running.append(reward)
+                    # to avoid infinite loops which can make one game very long
+                    if len(rewards_running) > 50:
+                        break
 
-                # to avoid infinite loops which can make one game very long
-                if len(rewards_running) > 50:
-                    break
+                # stack rewards
+                lifetime.append(len(rewards_running)*1.)
+                rewards_stacked.append(discount_rewards(rewards_running, gamma))
 
-            # stack rewards
-            games_count += 1
-            lifetime.append(len(rewards_running)*1.)
-            rewards_stacked.append(discount_rewards(rewards_running, gamma))
+            # display
+            if iterations_count % (n_iterations//10) == 0:
+                print("Batch #%d, average lifetime: %.2f, fruits eaten: %d, games played: %d, time: %d sec" %
+                        (iterations_count, np.mean(lifetime), fruits_count, iterations_count*batch_size, time() - start_time))
 
-            if games_count % batch_size == 0:
-                iterations_count += 1
+            # stack frames, targets and rewards
+            frames_stacked = np.vstack(frames_stacked)
+            targets_stacked = np.vstack(targets_stacked)
+            rewards_stacked = np.hstack(rewards_stacked)
+            rewards_stacked = np.reshape(rewards_stacked, (1, len(rewards_stacked)))*1.
+            avg_lifetime.append(np.mean(lifetime))
+            avg_reward.append(np.mean(rewards_stacked))
 
-                # display
-                if iterations_count % (n_iterations//10) == 0:
-                    print("Batch #%d, average lifetime: %.2f, fruits eaten: %d, games played: %d, time: %d sec" %
-                            (iterations_count, np.mean(lifetime), fruits_count, games_count, time() - start_time))
+            # normalize rewards
+            rewards_stacked -= np.mean(rewards_stacked)
+            std = np.std(rewards_stacked)
+            if std != 0:
+                rewards_stacked /= std
 
-                # stack frames, targets and rewards
-                frames_stacked = np.vstack(frames_stacked)
-                targets_stacked = np.vstack(targets_stacked)
-                rewards_stacked = np.hstack(rewards_stacked)
-                rewards_stacked = np.reshape(rewards_stacked, (1, len(rewards_stacked)))*1.
-                avg_lifetime.append(np.mean(lifetime))
-                avg_reward.append(np.mean(rewards_stacked))
+            # backpropagate
+            sess.run(optimizer, feed_dict={input_frames: frames_stacked, y_played: targets_stacked, advantages: rewards_stacked})
 
-                # normalize rewards
-                rewards_stacked -= np.mean(rewards_stacked)
-                std = np.std(rewards_stacked)
-                if std != 0:
-                    rewards_stacked /= std
-
-                # backpropagate
-                sess.run(optimizer, feed_dict={input_frames: frames_stacked, y_played: targets_stacked, advantages: rewards_stacked})
-
-                # reset variables
-                frames_stacked = []
-                targets_stacked = []
-                rewards_stacked = []
-                lifetime = []
-                fruits_count = 0
+            # reset variables
+            frames_stacked = []
+            targets_stacked = []
+            rewards_stacked = []
+            lifetime = []
+            fruits_count = 0
 
         # save model
         model_path = 'weights/weights_fc_' + model.__class__.__name__ + '.p'
