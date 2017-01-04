@@ -7,7 +7,7 @@ class FullyConnected:
         self.n_hidden = n_hidden
         self.n_classes = n_classes
 
-    def model_forward(self, input_frames):
+    def forward(self, input_frames):
         # initialize weights
         w1 = tf.Variable(tf.truncated_normal([self.n_input, self.n_hidden], stddev = .1))
         b1 = tf.Variable(tf.zeros([1, self.n_hidden]))
@@ -27,69 +27,89 @@ class FullyConnected:
         return out_probs
 
 
-# Create some wrappers for simplicity
-#(based on https://github.com/aymericdamien/TensorFlow-Examples)
-def conv2d(x, W, b, strides=1):
-    # Conv2D wrapper, with bias and relu activation
-    x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
-    x = tf.nn.bias_add(x, b)
-    return tf.nn.relu(x)
-
-
-def maxpool2d(x, k=2):
-    # MaxPool2D wrapper
-    return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
-                          padding='SAME')
-
 class ConvNet:
-    def __init__(self, grid_size, n_frames, n_classes):
+    '''
+    Takes a grid as input and outputs an action (int)
+    '''
+    def __init__(self, n_frames, n_classes, nb_blocks=2):
+        '''
+        Args:
+            nb_blocks (int): Number of residual blocks
+        '''
+        self.weights = {}
         self.n_frames = n_frames
-        self.grid_size = grid_size
+        self.nb_blocks = nb_blocks
         self.n_classes = n_classes
 
-    def model_forward(self, input_frames):
-        n_frames = self.n_frames
-        grid_size = self.grid_size
-        n_classes = self.n_classes
+    def conv2d(self, x, name, filter_size, nb_filter, stride=1, relu=True):
+        ''' Conv2d wrapper, with bias and relu activation '''
+        nb_input = x.get_shape().as_list()[3]
+        W = tf.Variable(tf.random_normal([filter_size, filter_size, nb_input, nb_filter]))
+        b = tf.Variable(tf.random_normal([nb_filter]))
+        self.weights['{}_w'.format(name)] = W
+        self.weights['{}_b'.format(name)] = b
+        x = tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding='SAME')
+        x = tf.nn.bias_add(x, b)
+        if relu:
+            x = tf.nn.relu(x)
+        return x
 
-        # Store layers weight & bias
-        weights = {
-            # 5x5 conv, 1 input, 32 outputs
-            'wc1': tf.Variable(tf.random_normal([3, 3, n_frames, 16])),
-            'bc1': tf.Variable(tf.random_normal([16])),
-            # 5x5 conv, 32 inputs, 64 outputs
-            'wc2': tf.Variable(tf.random_normal([3, 3, 16, 32])),
-            'bc2': tf.Variable(tf.random_normal([32])),
-            # fully connected, 7*7*64 inputs, 1024 outputs
-            'wd1': tf.Variable(tf.random_normal([3*3*32, 128])),
-            'bd1': tf.Variable(tf.random_normal([128])),
-            # 1024 inputs, 10 outputs (class prediction)
-            'wout': tf.Variable(tf.random_normal([128, n_classes])),
-            'bout': tf.Variable(tf.random_normal([n_classes]))
-        }
-        self.weights = weights
+    def dense(self, x, name, nb_input, nb_filter, relu=True):
+        ''' Dense / fully connected layer '''
+        W = tf.Variable(tf.random_normal([nb_input, nb_filter]))
+        b = tf.Variable(tf.random_normal([nb_filter]))
+        self.weights['{}_w'.format(name)] = W
+        self.weights['{}_b'.format(name)] = b
+        x = tf.add(tf.matmul(x, W), b)
+        if relu:
+            x = tf.nn.relu(x)
+        return x
+
+    def maxpool2d(self, x, k=2):
+        # MaxPool2D wrapper
+        return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
+                              padding='SAME')
+
+    def residual_block(self, x, name):
+        # Squeeze input with 1x1 convolutions
+        conv1 = self.conv2d(x, '{}_conv1'.format(name), 1, 8, 1, relu=True)
+        # TODO: Batch norm
+        conv2 = self.conv2d(conv1, '{}_conv2'.format(name), 3, 32, 1, relu=False)
+        # TODO: Batch norm
+        out = conv2 + x # Residual connection
+        return out
+
+    def forward(self, input_frames):
+        n_frames = self.n_frames
+        n_classes = self.n_classes
 
         # TODO: add fire modules (1x1 convolutions for shielding 3x3 conv)
         # TODO: add max pooling
-        # Convolution Layer
-        conv1 = conv2d(input_frames, weights['wc1'], weights['bc1'])
+        # First convolutional Layer
+        conv1 = self.conv2d(input_frames, 'conv1', 3, 32, 1, relu=True)
         # Max Pooling (down-sampling)
         #conv1 = maxpool2d(conv1, k=2)
 
+        # Residual blocks
+        x = conv1
+        for i in range(self.nb_blocks):
+            x =  self.residual_block(x, 'res{}'.format(i+1))
+
         # Convolution Layer
-        conv2 = conv2d(conv1, weights['wc2'], weights['bc2'])
+        conv2 = self.conv2d(input_frames, 'conv1', 3, 32, 1, relu=True)
+        x = x + conv1 # Residual connection
         # Max Pooling (down-sampling)
-        conv2 = maxpool2d(conv2, k=2)
+        conv2 = self.maxpool2d(conv2, k=2)
 
         # Fully connected layer
+        nb_input = 3*3*32
         # Reshape conv2 output to fit fully connected layer input
-        fc1 = tf.reshape(conv2, [-1, weights['wd1'].get_shape().as_list()[0]])
-        fc1 = tf.add(tf.matmul(fc1, weights['wd1']), weights['bd1'])
-        fc1 = tf.nn.relu(fc1)
+        fc1 = tf.reshape(conv2, [-1, nb_input])
+        fc1 = self.dense(fc1, 'fc1', nb_input, 128)
         # Apply Dropout
         #fc1 = tf.nn.dropout(fc1, dropout)
 
         # Output, class prediction
-        out = tf.add(tf.matmul(fc1, weights['wout']), weights['bout'])
+        out = self.dense(fc1, 'fc1', 128, n_classes, relu=False)
         out = tf.nn.softmax(out)
         return out

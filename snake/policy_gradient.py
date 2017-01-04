@@ -11,6 +11,7 @@ from tools import sample_from_policy, discount_rewards
 
 # ------- Train ------- #
 def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate=0.001, n_frames=2):
+    print('Start training')
     # define placeholders for inputs and outputs
     input_frames = tf.placeholder(tf.float32, [None, snake.grid_size, snake.grid_size, n_frames])
     y_played = tf.placeholder(tf.float32, [None, model.n_classes])
@@ -18,7 +19,7 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
 
     # load model
     print('Loading %s model' % model.__class__.__name__)
-    out_probs = model.model_forward(input_frames)
+    out_probs = model.forward(input_frames)
 
     # define loss and optimizer
     epsilon = 1e-15
@@ -154,7 +155,7 @@ def test(model, snake, n_frames=2):
 
     # load model
     input_frames = tf.placeholder(tf.float32, [None, snake.grid_size, snake.grid_size, n_frames])
-    out_probs = model.model_forward(input_frames)
+    out_probs = model.forward(input_frames)
 
     # asssign weights
     model_path = 'weights/weights_fc_' + model.__class__.__name__ + '.p'
