@@ -31,14 +31,14 @@ class ConvNet:
     '''
     Takes a grid as input and outputs an action (int)
     '''
-    def __init__(self, n_frames, n_classes, nb_blocks=2):
+    def __init__(self, n_frames, n_classes, n_blocks=2):
         '''
         Args:
             nb_blocks (int): Number of residual blocks
         '''
         self.weights = {}
         self.n_frames = n_frames
-        self.nb_blocks = nb_blocks
+        self.n_blocks = n_blocks
         self.n_classes = n_classes
 
     def conv2d(self, x, name, filter_size, nb_filter, stride=1, relu=True):
@@ -92,12 +92,12 @@ class ConvNet:
 
         # Residual blocks
         x = conv1
-        for i in range(self.nb_blocks):
+        for i in range(self.n_blocks):
             x =  self.residual_block(x, 'res{}'.format(i+1))
 
         # Convolution Layer
-        conv2 = self.conv2d(input_frames, 'conv1', 3, 32, 1, relu=True)
-        x = x + conv1 # Residual connection
+        conv2 = self.conv2d(x, 'conv1', 1, 32, 1, relu=True)
+        conv2 = conv2 + conv1 # Residual connection
         # Max Pooling (down-sampling)
         conv2 = self.maxpool2d(conv2, k=2)
 

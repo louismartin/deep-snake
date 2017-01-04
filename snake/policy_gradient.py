@@ -93,7 +93,7 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
                         break
 
                 # stack rewards
-                lifetime.append(len(rewards_running)*1.)
+                lifetime.append(len(rewards_running))
                 rewards_stacked.append(discount_rewards(rewards_running, gamma))
 
             # Update progress bar description
