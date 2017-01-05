@@ -89,7 +89,7 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
 
 
         # save model
-        model_path = 'weights/weights_fc_' + model.__class__.__name__ + '.p'
+        model_path = 'weights/weights_' + model.__class__.__name__ + '.p'
         print('Saving model to ' + model_path)
         pkl.dump({k: v.eval() for k, v in model.weights.items()}, open(model_path,'w'))
 
@@ -108,7 +108,7 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
             plt.show()
 
 # ---- Test ---- #
-def test(model, snake, n_frames=2):
+def test(model, snake, n_frames=2, display=True):
 
     # initialize parameters
     n_classes = 4
@@ -118,7 +118,7 @@ def test(model, snake, n_frames=2):
     out_probs = model.forward(input_frames)
 
     # asssign weights
-    model_path = 'weights/weights_fc_' + model.__class__.__name__ + '.p'
+    model_path = 'weights/weights_' + model.__class__.__name__ + '.p'
     print('Loading model from ' + model_path)
 
     weights_trained = pkl.load(open(model_path, 'rb'))
@@ -138,8 +138,10 @@ def test(model, snake, n_frames=2):
         # Load weights
         for assign in assigns:
             sess.run(assign)
-
         # loop for n games
-        n = 10
+        lifetime = []
+        n = 100
         for i in range(n):
-            frames, actions, rewards, fruits = play_game(snake, model, sess, n_frames=2, display=True)
+            frames, actions, rewards, fruits = play_game(snake, model, sess, n_frames=2, display=display)
+            lifetime.append(len(rewards))
+    return np.mean(lifetime)

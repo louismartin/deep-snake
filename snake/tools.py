@@ -23,6 +23,7 @@ def play_game(snake, model, sess, n_frames=2, display=False):
     '''
     snake.reset()
     fruits_count = 0
+    time_since_last_fruit = 0
     rewards = []
     actions = []
     frames = []
@@ -53,12 +54,13 @@ def play_game(snake, model, sess, n_frames=2, display=False):
         reward = snake.play(action)
         if snake.is_food_eaten:
             fruits_count += 1 # TODO: convert to internal attribute of snake
-
+            time_since_last_fruit = 0
         actions.append(target)
         rewards.append(reward)
 
-        # Prevent infinite loops
-        if len(rewards) > 50:
+        # Prevent infinite loop
+        if time_since_last_fruit > 10:
             break
+        time_since_last_fruit += 1
 
     return np.array(frames), np.array(actions), np.array(rewards), fruits_count
