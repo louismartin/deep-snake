@@ -88,23 +88,23 @@ class ConvNet:
         # TODO: add fire modules (1x1 convolutions for shielding 3x3 conv)
         # TODO: add max pooling
         # First convolutional Layer
-        conv1 = self.conv2d(input_frames, 'conv1', 3, 32, 1, relu=True)
+        conv1 = self.conv2d(input_frames, 'conv1', 1, 4, 1, relu=True)
         # Max Pooling (down-sampling)
         #conv1 = maxpool2d(conv1, k=2)
 
         # Residual blocks
-        x = conv1
-        for i in range(self.n_blocks):
-            x =  self.residual_block(x, 'res{}'.format(i+1))
+        #x = conv1
+        #for i in range(self.n_blocks):
+        #    x =  self.residual_block(x, 'res{}'.format(i+1))
 
         # Convolution Layer
-        conv2 = self.conv2d(x, 'conv1', 1, 32, 1, relu=True)
-        conv2 = conv2 + conv1 # Residual connection
+        conv2 = self.conv2d(conv1, 'conv2', 3, 8, 1, relu=True)
+        #conv2 = conv2 + conv1 # Residual connection
         # Max Pooling (down-sampling)
-        conv2 = self.maxpool2d(conv2, k=2)
+        #conv2 = self.maxpool2d(conv2, k=2)
 
         # Fully connected layer
-        nb_input = 3*3*32
+        nb_input = 5*5*8
         # Reshape conv2 output to fit fully connected layer input
         fc1 = tf.reshape(conv2, [-1, nb_input])
         fc1 = self.dense(fc1, 'fc1', nb_input, 128)
