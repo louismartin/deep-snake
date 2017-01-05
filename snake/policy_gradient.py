@@ -5,9 +5,8 @@ import pickle as pkl
 import matplotlib.pyplot as plt
 
 from time import time
-from collections import deque
 from numpy import random
-from tools import sample_from_policy, discount_rewards
+from tools import sample_from_policy, discount_rewards, play_game
 from tqdm import tqdm
 
 # ------- Train ------- #
@@ -43,58 +42,23 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
         lifetime = []
         avg_lifetime = []
         avg_reward = []
-        fruits_count = 0
         description = ''
         pbar = tqdm(range(n_iterations), desc=description)
         for iterations_count in pbar:
+            fruits_count = 0
             # One iteration is a batch of batch_size games
             for game_count in range(batch_size):
                 # Play one game
-                # initialize snake environment and some variables
-                snake.reset()
-                # Add frames filled of zeros to be able to consider n_frames at the
-                # begining.
-                running_frames = deque()
-                for i in range(n_frames):
-                    running_frames.append(np.zeros((snake.grid_size, snake.grid_size)))
-                rewards_running = []
-
-                # loop for one game
-                while not snake.game_over:
-
-                    # get current frame and remove last frame
-                    running_frames.popleft()
-                    running_frames.append(snake.grid)
-                    # forward current and previous frames
-                    frames = np.array(running_frames)
-                    # Transform to shape (1,grid_size,grid_size,n_frames)
-                    frames = np.expand_dims(frames.transpose((1,2,0)), 0)
-                    frames_stacked.append(frames)
-                    policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : frames}))
-
-                    # sample action from returned policy
-                    action = sample_from_policy(policy)
-
-                    # build labels according to the sampled action
-                    target = np.zeros(4)
-                    target[action] = 1
-
-                    # play THE SNAKE and get the reward associated to the action
-                    reward = snake.play(action)
-                    if snake.is_food_eaten:
-                        fruits_count += 1
-
-                    # save targets and rewards
-                    targets_stacked.append(target)
-                    rewards_running.append(reward)
-
-                    # to avoid infinite loops which can make one game very long
-                    if len(rewards_running) > 50:
-                        break
+                frames, actions, rewards, fruits = play_game(snake, model, sess, n_frames=2)
 
                 # stack rewards
-                lifetime.append(len(rewards_running))
-                rewards_stacked.append(discount_rewards(rewards_running, gamma))
+                fruits_count += fruits
+                lifetime.append(len(rewards))
+                rewards_stacked.append(discount_rewards(rewards, gamma))
+                for f in frames:
+                    frames_stacked.append(f)
+                for a in actions:
+                    targets_stacked.append(a)
 
             # Update progress bar description
             description = 'Lifetime: {}, Fruits: {}'.format(np.mean(lifetime), fruits_count)
@@ -122,7 +86,7 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
             targets_stacked = []
             rewards_stacked = []
             lifetime = []
-            fruits_count = 0
+
 
         # save model
         model_path = 'weights/weights_fc_' + model.__class__.__name__ + '.p'
@@ -178,32 +142,4 @@ def test(model, snake, n_frames=2):
         # loop for n games
         n = 10
         for i in range(n):
-            # initialize snake environment and some variables
-            snake.reset()
-            running_frames = deque()
-            rewards_running = []
-            for i in range(n_frames):
-                running_frames.append(np.zeros((snake.grid_size, snake.grid_size)))
-
-            while not snake.game_over:
-                snake.display()
-
-                # get current frame and remove last frame
-                running_frames.popleft()
-                running_frames.append(snake.grid)
-
-                # forward current and previous frames
-                frames = np.array(running_frames)
-                # Transform to shape (1,grid_size,grid_size,n_frames)
-                frames = np.expand_dims(frames.transpose((1,2,0)), 0)
-                policy = np.ravel(sess.run(out_probs, feed_dict = {input_frames : frames}))
-
-                # sample action from returned policy
-                action = np.argmax(policy)
-
-                # play THE SNAKE and get the reward associated to the action
-                reward = snake.play(action)
-                rewards_running += [reward]
-                # to avoid infinite loops which can make one game very long
-                if len(rewards_running) > 50:
-                    break
+            frames, actions, rewards, fruits = play_game(snake, model, sess, n_frames=2, display=True)

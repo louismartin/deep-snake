@@ -8,6 +8,7 @@ class FullyConnected:
         self.n_classes = n_classes
 
     def forward(self, input_frames):
+        self.input_frames = input_frames
         # initialize weights
         w1 = tf.Variable(tf.truncated_normal([self.n_input, self.n_hidden], stddev = .1))
         b1 = tf.Variable(tf.zeros([1, self.n_hidden]))
@@ -23,7 +24,7 @@ class FullyConnected:
         hidden_layer = tf.nn.relu(hidden_layer)
         out_layer = tf.add(tf.matmul(hidden_layer, w2), b2)
         out_probs = tf.nn.softmax(out_layer)
-
+        self.out_probs = out_probs
         return out_probs
 
 
@@ -80,6 +81,7 @@ class ConvNet:
         return out
 
     def forward(self, input_frames):
+        self.input_frames = input_frames
         n_frames = self.n_frames
         n_classes = self.n_classes
 
@@ -111,5 +113,6 @@ class ConvNet:
 
         # Output, class prediction
         out = self.dense(fc1, 'fc1', 128, n_classes, relu=False)
-        out = tf.nn.softmax(out)
-        return out
+        out_probs = tf.nn.softmax(out)
+        self.out_probs = out_probs
+        return out_probs
