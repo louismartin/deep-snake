@@ -112,7 +112,7 @@ class ConvNet:
         #fc1 = tf.nn.dropout(fc1, dropout)
 
         # Output, class prediction
-        out = self.dense(fc1, 'fc1', 128, n_classes, relu=False)
+        out = self.dense(fc1, 'fcout', 128, n_classes, relu=False)
         out_probs = tf.nn.softmax(out)
         self.out_probs = out_probs
         return out_probs
