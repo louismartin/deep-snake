@@ -59,7 +59,7 @@ def play_game(snake, model, sess, n_frames=2, display=False):
         rewards.append(reward)
 
         # Prevent infinite loop
-        if time_since_last_fruit > 2*snake.grid_size:
+        if time_since_last_fruit > 3*snake.grid_size:
             break
         time_since_last_fruit += 1
 

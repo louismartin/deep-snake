@@ -10,7 +10,7 @@ from tools import sample_from_policy, discount_rewards, play_game
 from tqdm import tqdm
 
 # ------- Train ------- #
-def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate=0.001, n_frames=2, plot=True):
+def train(model, snake, warm_restart=False, batch_size=100, n_iterations=100, gamma=1, learning_rate=0.001, n_frames=2, plot=True):
     print('Start training')
     # define placeholders for inputs and outputs
     input_frames = tf.placeholder(tf.float32, [None, snake.grid_size, snake.grid_size, n_frames])
@@ -30,10 +30,24 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
     # initialize the variables
     init = tf.global_variables_initializer()
 
+    ops = []
+    if warm_restart:
+        # Load previous weights
+        model_path = 'weights/weights_' + model.__class__.__name__ + '.p'
+        print('Loading model from ' + model_path)
+
+        weights_trained = pkl.load(open(model_path, 'rb'))
+        for weight_key in weights_trained:
+            assert weight_key in model.weights
+            assign = tf.assign(model.weights[weight_key], weights_trained[weight_key])
+            ops.append(assign)
+
     with tf.Session() as sess:
 
         # initialize variables
         sess.run(init)
+        for op in ops:
+            sess.run(ops)
 
         # used later to save variables for the batch
         frames_stacked = []
@@ -54,12 +68,12 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
                 # stack rewards
                 fruits_count += fruits
                 lifetime.append(len(rewards))
-                rewards_stacked.append(discount_rewards(rewards, gamma))
+                rewards = discount_rewards(rewards, gamma)
+                rewards_stacked.append(rewards)
                 for f in frames:
                     frames_stacked.append(f)
                 for a in actions:
                     targets_stacked.append(a)
-
             # Update progress bar description
             description = 'Lifetime: {}, Fruits: {}'.format(np.mean(lifetime), fruits_count)
             pbar.set_description(description)
@@ -67,8 +81,8 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
             # stack frames, targets and rewards
             frames_stacked = np.vstack(frames_stacked)
             targets_stacked = np.vstack(targets_stacked)
-            rewards_stacked = np.hstack(rewards_stacked)
-            rewards_stacked = np.reshape(rewards_stacked, (1, len(rewards_stacked)))*1.
+            rewards_stacked = np.hstack(rewards_stacked).astype(np.float32)
+            rewards_stacked = np.reshape(rewards_stacked, (1, len(rewards_stacked)))
             avg_lifetime.append(np.mean(lifetime))
             avg_reward.append(np.mean(rewards_stacked))
 
