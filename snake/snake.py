@@ -68,24 +68,25 @@ class Snake:
         (row_inc, col_inc) = self.actions[action]
         self.move(row_inc, col_inc)
         if self.is_food_eaten:
-            if self.verbose: print('Food eaten :)')
             self.spawn_food()
             reward = self.rewards['food']
+            if self.verbose: print('Food eaten :) - Reward:{}'.format(reward))
         elif self.is_bitten:
-            if self.verbose: print('Tail bitten :(')
             reward = self.rewards['bitten']
             self.game_over = True
+            if self.verbose: print('Tail bitten :( - Reward:{}'.format(reward))
         elif self.is_out:
-            if self.verbose: print('Wall hit :(')
             reward = self.rewards['out']
             self.game_over = True
+            if self.verbose: print('Wall hit :( - Reward:{}'.format(reward))
         else:
             # Snake did not grow, pop end of tail
             self.grid[self.snake.popleft()] = 0
             reward =  self.rewards['nothing']
+            if self.verbose: print('Nothing happened - Reward:{}'.format(reward))
         return reward
 
     def display(self):
         plt.ion()
         plt.imshow(self.grid, interpolation='nearest')
-        plt.pause(0.1)
+        plt.pause(0.05)

@@ -109,10 +109,6 @@ def train(model, snake, batch_size=100, n_iterations=100, gamma=1, learning_rate
 
 # ---- Test ---- #
 def test(model, snake, n_frames=2, display=True):
-
-    # initialize parameters
-    n_classes = 4
-
     # load model
     input_frames = tf.placeholder(tf.float32, [None, snake.grid_size, snake.grid_size, n_frames])
     out_probs = model.forward(input_frames)
