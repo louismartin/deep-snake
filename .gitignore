@@ -10,8 +10,5 @@ venv
 # Mac stuff
 .DS_Store
 
-# Notebooks for tests
-*.ipynb
-
 # cache
 *.pyc
