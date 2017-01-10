@@ -1,5 +1,5 @@
 # Deep Snake
-This repo is a adaptation of Deep Policy Networks to play the game of Snake. It has been coded in Python using Tensorflow. 
+This repo is a adaptation of Deep Policy Networks to play the game of Snake. It has been coded in Python using Tensorflow. Have fun !
 
 1. [Setup](#setup)
 
@@ -13,14 +13,15 @@ You can find the requirements in the file __requirements.txt__. All coding files
 
 ## Playing around
 
-We implemented a simple snake envioronment (__snake.py__), simply run 
+We implemented a simple snake envioronment (__snake.py__). To play it yourself and try to beat the best AI score, simply run 
 ```
 python demo_snake.py
 ```
-to play it yourself !
 
-
-We also implemented the policy network algorithm as described in our report 
+We also implemented the policy network algorithm as described in our report in the file __policy_gradient.py__. You can try your own network structure (folder __models__). The pretrained weights are avilable in the __weights__ folder (there is a warm_restart argument to the training function) and the output graphs are available in the __graphs__ folder. To try our implementation, simply run
+```
+python demo_policy.py
+```
 
 ## Going further
 
