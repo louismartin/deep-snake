@@ -1,18 +1,21 @@
+import time
+import os.path
+
 import numpy as np
 import tensorflow as tf
 import pickle as pkl
 import matplotlib.pyplot as plt
-#import seaborn as sns
-
-from time import time
-from numpy import random
-from tools import sample_from_policy, discount_rewards, play_game
+import seaborn as sns
 from tqdm import tqdm
+from numpy import random
+
+from tools import sample_from_policy, discount_rewards, play_game
 
 
 def train(model, snake, warm_restart=False, batch_size=100, n_iterations=100,
           gamma=1, learning_rate=0.001, n_frames=2, plot=True):
     print('Start training')
+    start_time = time.time()
     # define placeholders for inputs and outputs
     input_frames = tf.placeholder(tf.float32, [None, snake.grid_size,
                                                snake.grid_size, n_frames])
@@ -52,26 +55,25 @@ def train(model, snake, warm_restart=False, batch_size=100, n_iterations=100,
         for op in ops:
             sess.run(ops)
 
-        # used later to save variables for the batch
-        frames_stacked = []
-        targets_stacked = []
-        rewards_stacked = []
-        lifetime = []
-        avg_lifetime = []
-        avg_reward = []
-        description = ''
-        pbar = tqdm(range(n_iterations), desc=description)
-        for iterations_count in pbar:
-            fruits_count = 0
+        avg_lifetime = np.zeros(n_iterations)
+        avg_fruits = np.zeros(n_iterations)
+        avg_reward = np.zeros(n_iterations)
+        pbar = tqdm(range(n_iterations), desc='')
+        for i in pbar:
+            fruits_count = []
+            frames_stacked = []
+            targets_stacked = []
+            rewards_stacked = []
+            lifetime = []
             # One iteration is a batch of batch_size games
             for game_count in range(batch_size):
                 # Play one game
                 frames, actions, rewards, fruits = play_game(
-                    snake, model, sess, n_frames=2
+                    snake, model, sess, n_frames=n_frames
                 )
 
                 # stack rewards
-                fruits_count += fruits
+                fruits_count.append(fruits)
                 lifetime.append(len(rewards))
                 rewards = discount_rewards(rewards, gamma)
                 rewards_stacked.append(rewards)
@@ -81,7 +83,7 @@ def train(model, snake, warm_restart=False, batch_size=100, n_iterations=100,
                     targets_stacked.append(a)
             # Update progress bar description
             description = 'Lifetime: {}, Fruits: {}'.format(
-                np.mean(lifetime), fruits_count
+                np.mean(lifetime), np.mean(fruits_count)
             )
             pbar.set_description(description)
 
@@ -90,8 +92,10 @@ def train(model, snake, warm_restart=False, batch_size=100, n_iterations=100,
             targets_stacked = np.vstack(targets_stacked)
             rewards_stacked = np.hstack(rewards_stacked).astype(np.float32)
             rewards_stacked = rewards_stacked.reshape(1, len(rewards_stacked))
-            avg_lifetime.append(np.mean(lifetime))
-            avg_reward.append(np.mean(rewards_stacked))
+
+            avg_lifetime[i] = np.mean(lifetime)
+            avg_reward[i] = np.mean(rewards_stacked)
+            avg_fruits[i] = np.mean(fruits_count)
 
             # normalize rewards
             rewards_stacked -= np.mean(rewards_stacked)
@@ -103,13 +107,7 @@ def train(model, snake, warm_restart=False, batch_size=100, n_iterations=100,
             sess.run(optimizer, feed_dict={input_frames: frames_stacked,
                                            y_played: targets_stacked,
                                            advantages: rewards_stacked})
-
-            # reset variables
-            frames_stacked = []
-            targets_stacked = []
-            rewards_stacked = []
-            lifetime = []
-
+        total_time = time.time() - start_time
         # save model
         model_path = 'weights/weights_' + model.__class__.__name__ + '.p'
         print('Saving model to ' + model_path)
@@ -127,14 +125,15 @@ def train(model, snake, warm_restart=False, batch_size=100, n_iterations=100,
             )
             plt.show()
 
-            plt.plot(avg_reward)
-            plt.title('Average reward')
+            plt.plot(avg_fruits)
+            plt.title('Average fruits eaten')
             plt.xlabel('Iteration')
-            plt.savefig('graphs/average_reward_{}.png'.format(
+            plt.savefig('graphs/average_fruits_{}.png'.format(
                 model.__class__.__name__)
             )
             plt.show()
             sns.reset_orig()
+    return avg_lifetime, avg_fruits, total_time
 
 
 def test(model, snake, n_frames=2, display=True, save=False):
@@ -170,7 +169,7 @@ def test(model, snake, n_frames=2, display=True, save=False):
         n = 100
         for i in range(n):
             frames, actions, rewards, fruits = play_game(
-                snake, model, sess, n_frames=2, display=display, save=save
+                snake, model, sess, n_frames=n_frames, display=display, save=save
             )
             lifetime.append(len(rewards))
     return np.mean(lifetime)
