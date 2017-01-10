@@ -1,11 +1,13 @@
-import numpy as np
-import matplotlib.pyplot as plt
 from collections import deque
 from random import randint
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+
 class Snake:
     def __init__(self, grid_size=5, snake_length=3,
-                 rewards={'nothing':-1, 'bitten':-10, 'out':-10, 'food':100},
+                 rewards={'nothing': -10, 'bitten': -1, 'out': -1, 'food': 10},
                  verbose=0):
         self.grid_size = grid_size
         self.snake_length = snake_length
@@ -13,11 +15,12 @@ class Snake:
         self.verbose = verbose
         # TODO: add idle action ? (Check if performance increases)
         self.actions = {
-            0: (0,-1), # Move left
-            1: (-1,0), # Move up
-            2: (0,+1), # Move right
-            3: (+1,0)  # Move down
+            0: (0, -1),  # Move left
+            1: (-1, 0),  # Move up
+            2: (0, +1),  # Move right
+            3: (+1, 0)   # Move down
         }
+        self.im = None
         self.reset()
 
     def reset(self):
@@ -86,7 +89,13 @@ class Snake:
             if self.verbose: print('Nothing happened - Reward:{}'.format(reward))
         return reward
 
-    def display(self):
-        plt.ion()
-        plt.imshow(self.grid, interpolation='nearest')
-        plt.pause(0.05)
+    def display(self, filename=None):
+        if self.im:
+            self.im.set_data(self.grid)
+        else:
+            plt.ion()
+            plt.axis('off')
+            self.im = plt.imshow(self.grid, interpolation='nearest')
+        if filename:
+            plt.savefig(filename, bbox_inches='tight')
+        plt.pause(0.00001)

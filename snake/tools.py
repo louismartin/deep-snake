@@ -1,11 +1,17 @@
-import numpy as np
+import os
+import os.path as op
 from collections import deque
+import time
+
+import numpy as np
 from numpy import random
+
 
 def sample_from_policy(t):
     p = random.random()
     cdf = np.cumsum(t)
     return np.where(cdf >= p)[0][0]
+
 
 def discount_rewards(rewards, gamma):
     rewards_new = np.zeros(len(rewards))
@@ -16,7 +22,8 @@ def discount_rewards(rewards, gamma):
         rewards_new[i] = discount_sum
     return rewards_new
 
-def play_game(snake, model, sess, n_frames=2, display=False):
+
+def play_game(snake, model, sess, n_frames=2, display=False, save=False):
     '''
     Play one game and returns the rewards
     Must be called inside a tensorflow session with variable initialized
@@ -33,8 +40,20 @@ def play_game(snake, model, sess, n_frames=2, display=False):
     for i in range(n_frames):
         running_frames.append(np.zeros((snake.grid_size, snake.grid_size)))
 
+    i = 0
+    if save:
+        dir_name = op.join('graphs', 'games', '{}'.format(int(time.time()*100)))
+        os.mkdir(dir_name)
+    else:
+        filename = None
+
     while not snake.game_over:
-        if display: snake.display()
+        if display:
+            if save:
+                filename = op.join(dir_name,
+                                   'snake_{num:002d}.png'.format(num=i))
+            snake.display(filename=filename)
+            i += 1
         # get current frame and remove last frame
         running_frames.popleft()
         running_frames.append(snake.grid)
