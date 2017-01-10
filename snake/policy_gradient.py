@@ -1,13 +1,15 @@
-#load useful libraries
 import numpy as np
 import tensorflow as tf
 import pickle as pkl
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from time import time
 from numpy import random
 from tools import sample_from_policy, discount_rewards, play_game
 from tqdm import tqdm
+sns.set_style('darkgrid')
+
 
 # ------- Train ------- #
 def train(model, snake, warm_restart=False, batch_size=100, n_iterations=100, gamma=1, learning_rate=0.001, n_frames=2, plot=True):
