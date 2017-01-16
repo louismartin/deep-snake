@@ -1,8 +1,8 @@
 # Deep Snake
 This repo is a adaptation of Deep Policy Networks to play the game of Snake. It has been coded in Python using Tensorflow. To get started, you can have a look at our iPython notebook. Have fun !
 
+![Snake Demo](https://github.com/RLSnake/Snake/blob/master/demo.gif?style=centerme)
 
-![](https://github.com/RLSnake/Snake/blob/master/demo.gif)
 
 1. [Setup](#setup)
 
