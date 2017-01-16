@@ -3,7 +3,7 @@ This repo is a adaptation of Deep Policy Networks to play the game of Snake. It 
 
 <p align="center">
   <img src="https://github.com/RLSnake/Snake/blob/master/demo.gif">
-  <figcaption>Snake Demo. The Snake dos not eat the fruit in the first place to avoid being trapped and loose the game</figcaption>
+  <div style='width: 130px; text-align: center;'>Snake Demo. The Snake dos not eat the fruit in the first place to avoid being trapped and loose the game</div>
 </p>
 
 1. [Setup](#setup)
