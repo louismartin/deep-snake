@@ -1,9 +1,10 @@
 # Deep Snake
-This repo is a adaptation of Deep Policy Networks to play the game of Snake. It has been coded in Python using Tensorflow. To get started, you can have a look at our iPython notebook. Have fun !
+This repo is a adaptation of Deep Policy Networks to play the game of Snake. It has been coded in Python using Tensorflow. To get started, you can have a look at our iPython notebook. 
+
+Below is a short demo. Note that the Snake dos not eat the fruit in the first place to avoid being trapped and loose the game. Have fun !
 
 <p align="center">
   <img src="https://github.com/RLSnake/Snake/blob/master/demo.gif">
-  <div style='width: 130px; text-align: center;'>Snake Demo. The Snake dos not eat the fruit in the first place to avoid being trapped and loose the game</div>
 </p>
 
 1. [Setup](#setup)
