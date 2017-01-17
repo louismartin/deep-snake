@@ -40,13 +40,15 @@ def train(model, snake, warm_restart=False, batch_size=100, n_iterations=100,
         # Load previous weights
         model_path = 'weights/weights_' + model.__class__.__name__ + '.p'
         print('Loading model from ' + model_path)
-
-        weights_trained = pkl.load(open(model_path, 'rb'))
-        for weight_key in weights_trained:
-            assert weight_key in model.weights
-            assign = tf.assign(model.weights[weight_key],
-                               weights_trained[weight_key])
-            ops.append(assign)
+        if os.path.exists(model_path):
+            weights_trained = pkl.load(open(model_path, 'rb'))
+            for weight_key in weights_trained:
+                assert weight_key in model.weights
+                assign = tf.assign(model.weights[weight_key],
+                                   weights_trained[weight_key])
+                ops.append(assign)
+        else:
+            print('Model not found at {}'.format(model_path))
 
     with tf.Session() as sess:
 
