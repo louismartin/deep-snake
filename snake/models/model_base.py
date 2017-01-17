@@ -45,8 +45,8 @@ class ConvNet:
     def conv2d(self, x, name, filter_size, nb_filter, stride=1, relu=True):
         ''' Conv2d wrapper, with bias and relu activation '''
         nb_input = x.get_shape().as_list()[3]
-        W = tf.Variable(tf.random_normal([filter_size, filter_size, nb_input, nb_filter]))
-        b = tf.Variable(tf.random_normal([nb_filter]))
+        W = tf.Variable(tf.truncated_normal([filter_size, filter_size, nb_input, nb_filter], stddev = .1))
+        b = tf.Variable(tf.truncated_normal([nb_filter], stddev = .1))
         self.weights['{}_w'.format(name)] = W
         self.weights['{}_b'.format(name)] = b
         x = tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding='SAME')
@@ -57,8 +57,8 @@ class ConvNet:
 
     def dense(self, x, name, nb_input, nb_filter, relu=True):
         ''' Dense / fully connected layer '''
-        W = tf.Variable(tf.random_normal([nb_input, nb_filter]))
-        b = tf.Variable(tf.random_normal([nb_filter]))
+        W = tf.Variable(tf.truncated_normal([nb_input, nb_filter], stddev = .1))
+        b = tf.Variable(tf.truncated_normal([nb_filter], stddev = .1))
         self.weights['{}_w'.format(name)] = W
         self.weights['{}_b'.format(name)] = b
         x = tf.add(tf.matmul(x, W), b)
